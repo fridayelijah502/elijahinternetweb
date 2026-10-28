@@ -261,6 +261,117 @@ export function splitScriptIntoScenes(raw: string): ParsedScene[] {
 /** Rough narration reading speed used for duration estimates (words per minute). */
 export const WORDS_PER_MINUTE = 140;
 
+/* --------------------------- Script tool helpers --------------------------- */
+
+/**
+ * Estimated screen time for a scene: the longer of the spoken narration estimate
+ * and the director's own target duration. Never claims to be exact.
+ */
+export function estimateSceneDuration(scene: {
+	narration?: string;
+	dialogue?: DialogueLine[];
+	durationSec?: number;
+}): number {
+	const spoken = [scene.narration ?? "", ...(scene.dialogue ?? []).map((d) => d.text)]
+		.filter(Boolean)
+		.join(" ");
+	const spokenSec = spoken.trim() ? estimateDurationSec(spoken) : 0;
+	const target = scene.durationSec ?? 0;
+	return Math.max(1, Math.round(Math.max(spokenSec, target)));
+}
+
+/** Parse free-form script text into scene-shaped records. Offline and deterministic. */
+export function parseScriptText(text: string): {
+	scenes: (Pick<Scene, "title" | "purpose" | "narration" | "action" | "dialogue"> & {
+		dialogue: DialogueLine[];
+	})[];
+} {
+	const chunks = splitScriptIntoScenes(text);
+	return {
+		scenes: chunks.map((c, i) => ({
+			title: c.title || `Scene ${i + 1}`,
+			purpose: c.action ? c.action.slice(0, 120) : "",
+			narration: c.narration,
+			action: c.action,
+			dialogue: c.dialogue,
+		})),
+	};
+}
+
+export interface ScriptTextDraft {
+	premise?: string;
+	audience?: string;
+	genre?: string;
+	tone?: string;
+	targetDurationSec?: number;
+}
+
+/** Render a project script (details + scenes) as plain text for export. */
+export function scriptToText(draft: ScriptTextDraft, scenes: Scene[]): string {
+	const lines: string[] = [];
+	lines.push("TITLE");
+	lines.push("");
+	lines.push("PREMISE");
+	lines.push(draft.premise || "(not set)");
+	lines.push("");
+	if (draft.genre || draft.tone || draft.audience) {
+		lines.push("DETAILS");
+		if (draft.genre) lines.push(`Genre: ${draft.genre}`);
+		if (draft.tone) lines.push(`Tone: ${draft.tone}`);
+		if (draft.audience) lines.push(`Audience: ${draft.audience}`);
+		if (draft.targetDurationSec)
+			lines.push(`Target duration: ${formatDuration(draft.targetDurationSec)} (target only)`);
+		lines.push("");
+	}
+	lines.push("SCENES");
+	lines.push("");
+	scenes.forEach((scene, i) => {
+		lines.push(`SCENE ${i + 1} — ${scene.title || "Untitled scene"}`);
+		if (scene.location) lines.push(`Location: ${scene.location}`);
+		if (scene.timeOfDay) lines.push(`Time: ${scene.timeOfDay}`);
+		if (scene.action) lines.push(`Action: ${scene.action}`);
+		if (scene.narration) lines.push(`Narration: ${scene.narration}`);
+		for (const line of scene.dialogue ?? []) {
+			lines.push(`${line.speaker}: ${line.text}`);
+		}
+		lines.push(`[Estimated duration: ${formatDuration(estimateSceneDuration(scene))}]`);
+		lines.push("");
+	});
+	return lines.join("\n");
+}
+
+export interface OutlineInput {
+	title: string;
+	premise?: string;
+	audience?: string;
+	durationSec: number;
+	filmType?: string;
+}
+
+/**
+ * Build a structural outline from a local template. Deterministic and offline —
+ * this is NOT AI output and is labelled as a template wherever it is used.
+ */
+export function buildOutline(input: OutlineInput): {
+	chapters: { title: string; beats: string[] }[];
+	template: string;
+} {
+	const templateId =
+		input.filmType === "documentary" || input.filmType === "history"
+			? "documentary"
+			: input.durationSec <= 90
+				? "short"
+				: "classic";
+	const template = OUTLINE_TEMPLATES.find((t) => t.id === templateId) ?? OUTLINE_TEMPLATES[0];
+	const chapters = template.build(
+		input.title,
+		input.premise ?? "",
+		input.audience ?? "",
+		input.durationSec,
+	).chapters;
+	return { chapters, template: template.label };
+}
+
 export function estimateDurationSec(text: string): number {
 	const words = text.trim().split(/\s+/).filter(Boolean).length;
 	return Math.max(1, Math.round((words / WORDS_PER_MINUTE) * 60));
