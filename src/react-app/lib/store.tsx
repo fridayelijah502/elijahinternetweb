@@ -515,6 +515,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 		[mutate],
 	);
 
+	const importBackup = useCallback(
+		(data: Partial<PersistedState>) => {
+			mutate((prev) => ({
+				projects: data.projects ?? prev.projects,
+				scenes: data.scenes ?? prev.scenes,
+				characters: data.characters ?? prev.characters,
+				media: data.media ?? prev.media,
+				scripts: data.scripts ?? prev.scripts,
+			}));
+		},
+		[mutate],
+	);
+
+	const resetAll = useCallback(() => {
+		mutate(() => emptyState());
+	}, [mutate]);
+
 	const logActivity = useCallback(
 		(projectId: string, kind: Project["activity"][number]["kind"], label: string) => {
 			mutate((prev) => ({
