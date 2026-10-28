@@ -173,7 +173,8 @@ export type ProviderId =
 	| "ollama"
 	| "stability"
 	| "elevenlabs"
-	| "whisper";
+	| "whisper"
+	| "replicate";
 
 export interface ProviderInfo {
 	id: ProviderId;
