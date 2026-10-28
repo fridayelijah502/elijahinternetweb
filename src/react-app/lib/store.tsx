@@ -64,6 +64,9 @@ interface StoreValue {
 
 	setScript: (projectId: string, script: ScriptData) => void;
 
+	importBackup: (data: Partial<PersistedState>) => void;
+	resetAll: () => void;
+
 	logActivity: (projectId: string, kind: Project["activity"][number]["kind"], label: string) => void;
 
 	getProject: (id: string | undefined) => Project | undefined;
