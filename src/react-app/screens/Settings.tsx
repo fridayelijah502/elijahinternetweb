@@ -165,8 +165,8 @@ export default function SettingsScreen() {
 								onChange={(e) => updateSettings({ defaultLanguage: e.target.value })}
 							>
 								{LANGUAGES.map((l) => (
-									<option key={l.value ?? l} value={l.value ?? l}>
-										{(l as { label?: string }).label ?? l}
+									<option key={l} value={l}>
+										{l}
 									</option>
 								))}
 							</Select>
